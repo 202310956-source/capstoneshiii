@@ -1,98 +1,65 @@
-import {
-  browserLocalPersistence,
-  browserSessionPersistence,
-  createUserWithEmailAndPassword,
-  onAuthStateChanged,
-  setPersistence,
-  signInWithEmailAndPassword,
-  signOut,
-  updateProfile,
-} from "firebase/auth";
-import { collection, doc, getDocs, limit, query, setDoc, where } from "firebase/firestore";
-import { auth, db, firebaseEnabled } from "./firebase";
-
-const USERS_COLLECTION = "users";
+import { supabase, supabaseEnabled } from "./supabase";
 
 const mapAuthError = (error) => {
-  switch (error?.code) {
-    case "auth/invalid-email":
-      return "Invalid email address.";
-    case "auth/invalid-credential":
-    case "auth/wrong-password":
-      return "Wrong password. Please try again.";
-    case "auth/user-not-found":
-      return "User not found.";
-    case "auth/too-many-requests":
-      return "Too many login attempts. Please try again later.";
-    default:
-      return error?.message || "Authentication failed.";
-  }
+  const msg = error?.message ?? "";
+  if (msg.includes("Invalid login credentials")) return "Wrong email or password.";
+  if (msg.includes("Email not confirmed")) return "Please confirm your email before logging in.";
+  if (msg.includes("User already registered")) return "An account with this email already exists.";
+  return msg || "Authentication failed.";
 };
 
-export const getUserRoleByEmail = async (email) => {
-  if (!firebaseEnabled || !email) {
-    return "staff";
-  }
-
-  const usersQuery = query(collection(db, USERS_COLLECTION), where("email", "==", email), limit(1));
-  const snapshot = await getDocs(usersQuery);
-
-  if (snapshot.empty) {
-    return "staff";
-  }
-
-  return snapshot.docs[0].data().role ?? "staff";
+export const getUserRole = async (userId) => {
+  if (!supabaseEnabled || !userId) return "staff";
+  const { data } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", userId)
+    .single();
+  return data?.role ?? "staff";
 };
 
 export const subscribeToAuthChanges = (callback) => {
-  if (!firebaseEnabled) {
+  if (!supabaseEnabled) {
     callback(null);
     return () => {};
   }
-
-  return onAuthStateChanged(auth, callback);
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    (_event, session) => {
+      callback(session?.user ?? null);
+    },
+  );
+  // Trigger immediately with current session
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    callback(session?.user ?? null);
+  });
+  return () => subscription.unsubscribe();
 };
 
-export const loginUser = async (email, password, rememberMe = true) => {
-  if (!firebaseEnabled) {
-    throw new Error("Firebase is not configured. Login is disabled.");
-  }
-
-  try {
-    await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
-    const credential = await signInWithEmailAndPassword(auth, email, password);
-    const role = await getUserRoleByEmail(credential.user.email);
-
-    return { user: credential.user, role };
-  } catch (error) {
-    throw new Error(mapAuthError(error));
-  }
+export const loginUser = async (email, password) => {
+  if (!supabaseEnabled)
+    throw new Error("Supabase is not configured. Login is disabled.");
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw new Error(mapAuthError(error));
+  const role = await getUserRole(data.user.id);
+  return { user: data.user, role };
 };
 
 export const registerUser = async ({ name, email, password, role = "staff" }) => {
-  if (!firebaseEnabled) {
-    throw new Error("Firebase is not configured. Register is disabled.");
-  }
-
-  try {
-    const credential = await createUserWithEmailAndPassword(auth, email, password);
-    await updateProfile(credential.user, { displayName: name });
-    await setDoc(doc(collection(db, USERS_COLLECTION), credential.user.uid), {
-      email,
-      name,
-      role,
-    });
-
-    return { user: credential.user, role };
-  } catch (error) {
-    throw new Error(mapAuthError(error));
-  }
+  if (!supabaseEnabled)
+    throw new Error("Supabase is not configured. Register is disabled.");
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  if (error) throw new Error(mapAuthError(error));
+  // Store user profile and role
+  await supabase.from("users").upsert({
+    id: data.user.id,
+    email,
+    name,
+    role,
+  });
+  return { user: data.user, role };
 };
 
 export const logoutUser = async () => {
-  if (!firebaseEnabled) {
-    return;
-  }
-
-  await signOut(auth);
+  if (!supabaseEnabled) return;
+  await supabase.auth.signOut();
 };
