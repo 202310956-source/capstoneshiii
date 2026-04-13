@@ -11,8 +11,8 @@
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.3.0",
+    "@supabase/supabase-js": "^2.49.4",
     "axios": "^1.7.9",
-    "firebase": "^12.10.0",
     "notistack": "^3.0.1",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.1.3"
