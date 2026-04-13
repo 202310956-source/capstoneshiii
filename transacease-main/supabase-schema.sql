@@ -128,9 +128,9 @@ drop policy if exists "Anyone can insert transaction_items" on public.transactio
 create policy "Authenticated users can read transaction_items" on public.transaction_items for select using (auth.role() = 'authenticated');
 create policy "Anyone can insert transaction_items" on public.transaction_items for insert with check (true);
 
--- ── REALTIME ──────────────────────────────────
-alter publication supabase_realtime add table public.products;
-alter publication supabase_realtime add table public.ingredients;
-alter publication supabase_realtime add table public.product_ingredients;
-alter publication supabase_realtime add table public.transactions;
-alter publication supabase_realtime add table public.transaction_items;
+-- ── REALTIME (safe to re-run) ─────────────────
+do $$ begin alter publication supabase_realtime add table public.products; exception when others then null; end $$;
+do $$ begin alter publication supabase_realtime add table public.ingredients; exception when others then null; end $$;
+do $$ begin alter publication supabase_realtime add table public.product_ingredients; exception when others then null; end $$;
+do $$ begin alter publication supabase_realtime add table public.transactions; exception when others then null; end $$;
+do $$ begin alter publication supabase_realtime add table public.transaction_items; exception when others then null; end $$;
