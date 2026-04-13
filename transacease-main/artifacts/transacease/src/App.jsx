@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { Login, POS, Dashboard, Inventory, Auth } from "./pages";
+import { Login, POS, Dashboard, Inventory, Auth, Ingredients, Kiosk } from "./pages";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 
@@ -10,6 +10,7 @@ function App() {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/auth" element={<Auth />} />
+        <Route path="/kiosk" element={<Kiosk />} />
         <Route
           path="/pos"
           element={
@@ -31,6 +32,14 @@ function App() {
           element={
             <AdminRoute>
               <Inventory />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/ingredients"
+          element={
+            <AdminRoute>
+              <Ingredients />
             </AdminRoute>
           }
         />
