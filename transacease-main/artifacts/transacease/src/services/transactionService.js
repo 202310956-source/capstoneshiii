@@ -1,55 +1,58 @@
-import {
-  collection,
-  doc,
-  onSnapshot,
-  runTransaction,
-  serverTimestamp,
-} from "firebase/firestore";
-import { db, firebaseEnabled } from "./firebase";
+import { supabase, supabaseEnabled } from "./supabase";
 import { deductIngredients } from "./ingredientService";
 
-const TRANSACTIONS_COLLECTION = "transactions";
-const PRODUCTS_COLLECTION = "products";
-
-const normalizeTransaction = (snapshot) => {
-  const data = snapshot.data();
-  return {
-    id: snapshot.id,
-    totalAmount: Number(data.totalAmount ?? 0),
-    subtotal: Number(data.subtotal ?? 0),
-    discountAmount: Number(data.discountAmount ?? data.discountValue ?? 0),
-    discountType: data.discountType ?? "none",
-    status: data.status ?? "Completed",
-    cashierEmail: data.cashierEmail ?? "",
-    items: Array.isArray(data.items) ? data.items : [],
-    createdAt: data.createdAt ?? null,
-    source: data.source ?? "pos",
-    queueNumber: data.queueNumber ?? null,
-  };
-};
+const normalizeTransaction = (row) => ({
+  id: row.id,
+  totalAmount: Number(row.total_amount ?? 0),
+  subtotal: Number(row.subtotal ?? 0),
+  discountAmount: Number(row.discount_amount ?? 0),
+  discountType: row.discount_type ?? "none",
+  status: row.status ?? "Completed",
+  cashierEmail: row.cashier_email ?? "",
+  items: Array.isArray(row.transaction_items)
+    ? row.transaction_items.map((i) => ({
+        id: i.product_id,
+        name: i.name,
+        category: i.category ?? "",
+        price: Number(i.price ?? 0),
+        quantity: Number(i.quantity ?? 0),
+      }))
+    : [],
+  createdAt: row.created_at ?? null,
+  source: row.source ?? "pos",
+  queueNumber: row.queue_number ?? null,
+});
 
 const sortByCreatedAtDesc = (records) =>
   [...records].sort((a, b) => {
-    const aSeconds = a.createdAt?.seconds ?? 0;
-    const bSeconds = b.createdAt?.seconds ?? 0;
-    return bSeconds - aSeconds;
+    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return bTime - aTime;
   });
 
 export const subscribeToTransactions = (callback, onError) => {
-  if (!firebaseEnabled) {
+  if (!supabaseEnabled) {
     callback([]);
     return () => {};
   }
-  return onSnapshot(
-    collection(db, TRANSACTIONS_COLLECTION),
-    (snapshot) => {
-      const transactions = sortByCreatedAtDesc(
-        snapshot.docs.map(normalizeTransaction),
-      );
-      callback(transactions);
-    },
-    onError,
-  );
+
+  const fetchAll = async () => {
+    const { data, error } = await supabase
+      .from("transactions")
+      .select("*, transaction_items(*)")
+      .order("created_at", { ascending: false });
+    if (error) { onError(error); return; }
+    callback(sortByCreatedAtDesc(data.map(normalizeTransaction)));
+  };
+
+  fetchAll();
+
+  const subscription = supabase
+    .channel("transactions-changes")
+    .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, fetchAll)
+    .subscribe();
+
+  return () => supabase.removeChannel(subscription);
 };
 
 export const checkoutTransaction = async ({
@@ -61,57 +64,62 @@ export const checkoutTransaction = async ({
   discountType,
   promoValue,
 }) => {
-  if (!firebaseEnabled)
-    throw new Error("Firebase is not configured. Checkout is unavailable.");
+  if (!supabaseEnabled)
+    throw new Error("Supabase is not configured. Checkout is unavailable.");
   if (!cashier?.uid) throw new Error("You must be logged in to checkout.");
   if (!Array.isArray(cartItems) || cartItems.length === 0)
     throw new Error("Cart is empty.");
 
-  const transactionRef = doc(collection(db, TRANSACTIONS_COLLECTION));
-
-  await runTransaction(db, async (firestoreTransaction) => {
-    const productSnapshots = await Promise.all(
-      cartItems.map(async (item) => {
-        const productRef = doc(db, PRODUCTS_COLLECTION, item.id);
-        const snapshot = await firestoreTransaction.get(productRef);
-        if (!snapshot.exists())
-          throw new Error(`${item.name} no longer exists in inventory.`);
-        const currentStock = Number(snapshot.data().stock ?? 0);
-        if (currentStock < item.quantity)
-          throw new Error(`Insufficient stock for ${item.name}.`);
-        return { item, productRef, currentStock };
-      }),
-    );
-
-    productSnapshots.forEach(({ item, productRef, currentStock }) => {
-      firestoreTransaction.update(productRef, {
-        stock: currentStock - item.quantity,
-        updatedAt: serverTimestamp(),
-      });
-    });
-
-    firestoreTransaction.set(transactionRef, {
-      items: cartItems.map((item) => ({
-        id: item.id,
-        name: item.name,
-        category: item.category ?? "",
-        price: Number(item.price ?? 0),
-        quantity: Number(item.quantity ?? 0),
-      })),
+  const { data: txn, error: txnError } = await supabase
+    .from("transactions")
+    .insert({
       subtotal: Number(subtotal ?? 0),
-      discountAmount: Number(discountAmount ?? 0),
-      discountType: discountType ?? "none",
-      promoValue: Number(promoValue ?? 0),
-      totalAmount: Number(totalAmount ?? 0),
+      discount_amount: Number(discountAmount ?? 0),
+      discount_type: discountType ?? "none",
+      promo_value: Number(promoValue ?? 0),
+      total_amount: Number(totalAmount ?? 0),
       status: "Completed",
-      cashierUid: cashier.uid,
-      cashierEmail: cashier.email ?? "",
+      cashier_uid: cashier.uid,
+      cashier_email: cashier.email ?? "",
       source: "pos",
-      createdAt: serverTimestamp(),
-    });
-  });
+    })
+    .select()
+    .single();
 
-  return transactionRef;
+  if (txnError) throw new Error(txnError.message);
+
+  const itemRows = cartItems.map((item) => ({
+    transaction_id: txn.id,
+    product_id: item.id,
+    name: item.name,
+    category: item.category ?? "",
+    price: Number(item.price ?? 0),
+    quantity: Number(item.quantity ?? 0),
+  }));
+
+  const { error: itemsError } = await supabase
+    .from("transaction_items")
+    .insert(itemRows);
+
+  if (itemsError) throw new Error(itemsError.message);
+
+  // Deduct product stock
+  for (const item of cartItems) {
+    const { data: product } = await supabase
+      .from("products")
+      .select("stock")
+      .eq("id", item.id)
+      .single();
+    if (!product) continue;
+    if (Number(product.stock) < item.quantity)
+      throw new Error(`Insufficient stock for ${item.name}.`);
+    await supabase.from("products").update({
+      stock: Number(product.stock) - item.quantity,
+      updated_at: new Date().toISOString(),
+    }).eq("id", item.id);
+  }
+
+  return txn;
 };
 
 export const kioskCheckoutTransaction = async ({
@@ -120,42 +128,45 @@ export const kioskCheckoutTransaction = async ({
   totalAmount,
   productIngredientsMap,
 }) => {
-  if (!firebaseEnabled)
-    throw new Error("Firebase is not configured. Checkout is unavailable.");
+  if (!supabaseEnabled)
+    throw new Error("Supabase is not configured. Checkout is unavailable.");
   if (!Array.isArray(cartItems) || cartItems.length === 0)
     throw new Error("Cart is empty.");
 
-  const transactionRef = doc(collection(db, TRANSACTIONS_COLLECTION));
   const queueNumber = Math.floor(Math.random() * 999) + 1;
 
-  await runTransaction(db, async (firestoreTransaction) => {
-    await deductIngredients(
-      firestoreTransaction,
-      cartItems,
-      productIngredientsMap,
-    );
-
-    firestoreTransaction.set(transactionRef, {
-      items: cartItems.map((item) => ({
-        id: item.id,
-        name: item.name,
-        category: item.category ?? "",
-        price: Number(item.price ?? 0),
-        quantity: Number(item.quantity ?? 0),
-      })),
+  const { data: txn, error: txnError } = await supabase
+    .from("transactions")
+    .insert({
       subtotal: Number(subtotal ?? 0),
-      discountAmount: 0,
-      discountType: "none",
-      promoValue: 0,
-      totalAmount: Number(totalAmount ?? 0),
+      discount_amount: 0,
+      discount_type: "none",
+      promo_value: 0,
+      total_amount: Number(totalAmount ?? 0),
       status: "Pending",
-      cashierUid: "kiosk",
-      cashierEmail: "kiosk@self-service",
+      cashier_uid: "kiosk",
+      cashier_email: "kiosk@self-service",
       source: "kiosk",
-      queueNumber,
-      createdAt: serverTimestamp(),
-    });
-  });
+      queue_number: queueNumber,
+    })
+    .select()
+    .single();
 
-  return { transactionRef, queueNumber };
+  if (txnError) throw new Error(txnError.message);
+
+  const itemRows = cartItems.map((item) => ({
+    transaction_id: txn.id,
+    product_id: item.id,
+    name: item.name,
+    category: item.category ?? "",
+    price: Number(item.price ?? 0),
+    quantity: Number(item.quantity ?? 0),
+  }));
+
+  await supabase.from("transaction_items").insert(itemRows);
+
+  // Deduct ingredients
+  await deductIngredients(cartItems, productIngredientsMap);
+
+  return { transactionRef: txn, queueNumber };
 };
