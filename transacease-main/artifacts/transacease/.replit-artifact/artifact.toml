@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "TransacEase"
+version = "1.0.0"
+id = "artifacts/transacease"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+localPort = 19506
+name = "web"
+paths = ["/"]
+
+[services.development]
+run = "pnpm --filter @workspace/transacease run dev"
+
+[services.env]
+PORT = "19506"
+BASE_PATH = "/"
+
+[services.production]
+build = ["pnpm", "--filter", "@workspace/transacease", "run", "build"]
+publicDir = "artifacts/transacease/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"

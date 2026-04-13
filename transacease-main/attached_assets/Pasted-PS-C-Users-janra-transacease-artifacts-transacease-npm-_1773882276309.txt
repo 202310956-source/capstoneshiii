@@ -1,0 +1,135 @@
+PS C:\Users\janra\transacease\artifacts\transacease> npm install -g pnpm
+>> pnpm install
+>> pnpm run dev
+
+added 1 package in 3s
+
+1 package is looking for funding
+  run `npm fund` for details
+Scope: all 9 workspace projects
+../..                                    | +561 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Downloading firebase@12.10.0: 7.14 MB/7.14 MB, done
+Downloading @firebase/firestore@4.12.0: 10.06 MB/10.06 MB, done
+Downloading react-icons@5.6.0: 22.42 MB/22.42 MB, done
+../..                                    | Progress: resolved 561, reused 0, downloaded 561, added 561, done
+../../node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild: Running postinstall script, done in 2.7s
+
+dependencies:
++ @reduxjs/toolkit 2.11.2
++ axios 1.13.6
++ firebase 12.10.0
++ notistack 3.0.2
++ react-redux 9.2.0
++ react-router-dom 7.13.1
+
+devDependencies:
++ @hookform/resolvers 3.10.0
++ @radix-ui/react-accordion 1.2.12
++ @radix-ui/react-alert-dialog 1.1.15
++ @radix-ui/react-aspect-ratio 1.1.8
++ @radix-ui/react-avatar 1.1.11
++ @radix-ui/react-checkbox 1.3.3
++ @radix-ui/react-collapsible 1.1.12
++ @radix-ui/react-context-menu 2.2.16
++ @radix-ui/react-dialog 1.1.15
++ @radix-ui/react-dropdown-menu 2.1.16
++ @radix-ui/react-hover-card 1.1.15
++ @radix-ui/react-label 2.1.8
++ @radix-ui/react-menubar 1.1.16
++ @radix-ui/react-navigation-menu 1.2.14
++ @radix-ui/react-popover 1.1.15
++ @radix-ui/react-progress 1.1.8
++ @radix-ui/react-radio-group 1.3.8
++ @radix-ui/react-scroll-area 1.2.10
++ @radix-ui/react-select 2.2.6
++ @radix-ui/react-separator 1.1.8
++ @radix-ui/react-slider 1.3.6
++ @radix-ui/react-slot 1.2.4
++ @radix-ui/react-switch 1.2.6
++ @radix-ui/react-tabs 1.1.13
++ @radix-ui/react-toast 1.2.15
++ @radix-ui/react-toggle 1.1.10
++ @radix-ui/react-toggle-group 1.1.11
++ @radix-ui/react-tooltip 1.2.8
++ @replit/vite-plugin-cartographer 0.5.0
++ @replit/vite-plugin-dev-banner 0.1.2
++ @replit/vite-plugin-runtime-error-modal 0.0.6
++ @tailwindcss/typography 0.5.19
++ @tailwindcss/vite 4.2.1
++ @tanstack/react-query 5.90.21
++ @types/node 25.3.5
++ @types/react 19.2.14
++ @types/react-dom 19.2.3
++ @vitejs/plugin-react 5.1.4
++ @workspace/api-client-react 0.0.0 <- ..\..\lib\api-client-react
++ class-variance-authority 0.7.1
++ clsx 2.1.1
++ cmdk 1.1.1
++ date-fns 3.6.0
++ embla-carousel-react 8.6.0
++ framer-motion 12.35.1
++ input-otp 1.4.2
++ lucide-react 0.545.0
++ next-themes 0.4.6
++ react 19.1.0
++ react-day-picker 9.14.0
++ react-dom 19.1.0
++ react-hook-form 7.71.2
++ react-icons 5.6.0
++ react-resizable-panels 2.1.9
++ recharts 2.15.4
++ sonner 2.0.7
++ tailwind-merge 3.5.0
++ tailwindcss 4.2.1
++ tw-animate-css 1.4.0
++ vaul 1.1.2
++ vite 7.3.1
++ wouter 3.9.0
++ zod 3.25.76
+
+../.. preinstall$ sh -c 'rm -f package-lock.json yarn.lock; case "$npm_config_user_agent" in pnpm/*) ;; *) echo "Use pnp…  
+│ 'sh' is not recognized as an internal or external command,
+│ operable program or batch file.
+└─ Failed in 35ms at C:\Users\janra\transacease
+ ELIFECYCLE  Command failed with exit code 1.
+
+> @workspace/transacease@0.0.0 dev C:\Users\janra\transacease\artifacts\transacease
+> vite --config vite.config.ts --host 0.0.0.0
+
+C:\Users\janra\transacease\node_modules\.pnpm\rollup@4.59.0\node_modules\rollup\dist\native.js:115
+                throw new Error(
+                      ^
+
+Error: Cannot find module @rollup/rollup-win32-x64-msvc. npm has a bug related to optional dependencies (https://github.com/npm/cli/issues/4828). Please try `npm i` again after removing both package-lock.json and node_modules directory.
+    at requireWithFriendlyError (C:\Users\janra\transacease\node_modules\.pnpm\rollup@4.59.0\node_modules\rollup\dist\native.js:115:9)
+    at Object.<anonymous> (C:\Users\janra\transacease\node_modules\.pnpm\rollup@4.59.0\node_modules\rollup\dist\native.js:124:76)
+    at Module._compile (node:internal/modules/cjs/loader:1706:14)
+    at Object..js (node:internal/modules/cjs/loader:1839:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at cjsLoader (node:internal/modules/esm/translators:309:5)
+    at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:202:7) {
+  [cause]: Error: Cannot find module '@rollup/rollup-win32-x64-msvc'
+  Require stack:
+  - C:\Users\janra\transacease\node_modules\.pnpm\rollup@4.59.0\node_modules\rollup\dist\native.js
+      at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+      at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+      at Function._load (node:internal/modules/cjs/loader:1192:37)
+      at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+      at Module.require (node:internal/modules/cjs/loader:1463:12)
+      at require (node:internal/modules/helpers:147:16)
+      at requireWithFriendlyError (C:\Users\janra\transacease\node_modules\.pnpm\rollup@4.59.0\node_modules\rollup\dist\native.js:97:10)
+      at Object.<anonymous> (C:\Users\janra\transacease\node_modules\.pnpm\rollup@4.59.0\node_modules\rollup\dist\native.js:124:76) {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [
+      'C:\\Users\\janra\\transacease\\node_modules\\.pnpm\\rollup@4.59.0\\node_modules\\rollup\\dist\\native.js'
+    ]
+  }
+}
+
+Node.js v22.21.0
+ ELIFECYCLE  Command failed with exit code 1.

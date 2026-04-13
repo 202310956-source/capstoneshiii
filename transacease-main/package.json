@@ -1,0 +1,19 @@
+{
+  "name": "workspace",
+  "version": "0.0.0",
+  "license": "MIT",
+  "scripts": {
+    "build": "pnpm run typecheck && pnpm -r --if-present run build",
+    "typecheck:libs": "tsc --build",
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+  },
+  "private": true,
+  "dependencies": {
+    "@rollup/rollup-win32-x64-msvc": "4.59.1",
+    "lightningcss-win32-x64-msvc": "^1.31.1"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "4.34.9",
+    "lightningcss-linux-x64-gnu": "1.31.1"
+  }
+}

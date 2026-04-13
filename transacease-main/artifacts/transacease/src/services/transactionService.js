@@ -1,0 +1,114 @@
+import {
+  collection,
+  doc,
+  onSnapshot,
+  runTransaction,
+  serverTimestamp,
+} from "firebase/firestore";
+import { db, firebaseEnabled } from "./firebase";
+
+const TRANSACTIONS_COLLECTION = "transactions";
+const PRODUCTS_COLLECTION = "products";
+
+const normalizeTransaction = (snapshot) => {
+  const data = snapshot.data();
+
+  return {
+    id: snapshot.id,
+    totalAmount: Number(data.totalAmount ?? 0),
+    subtotal: Number(data.subtotal ?? 0),
+    discountAmount: Number(data.discountAmount ?? data.discountValue ?? 0),
+    discountType: data.discountType ?? "none",
+    status: data.status ?? "Completed",
+    cashierEmail: data.cashierEmail ?? "",
+    items: Array.isArray(data.items) ? data.items : [],
+    createdAt: data.createdAt ?? null,
+  };
+};
+
+const sortByCreatedAtDesc = (records) =>
+  [...records].sort((a, b) => {
+    const aSeconds = a.createdAt?.seconds ?? 0;
+    const bSeconds = b.createdAt?.seconds ?? 0;
+    return bSeconds - aSeconds;
+  });
+
+export const subscribeToTransactions = (callback, onError) => {
+  if (!firebaseEnabled) {
+    callback([]);
+    return () => {};
+  }
+
+  return onSnapshot(
+    collection(db, TRANSACTIONS_COLLECTION),
+    (snapshot) => {
+      const transactions = sortByCreatedAtDesc(snapshot.docs.map(normalizeTransaction));
+      callback(transactions);
+    },
+    onError,
+  );
+};
+
+export const checkoutTransaction = async ({ cartItems, cashier, subtotal, discountAmount, totalAmount, discountType, promoValue }) => {
+  if (!firebaseEnabled) {
+    throw new Error("Firebase is not configured. Checkout is unavailable.");
+  }
+
+  if (!cashier?.uid) {
+    throw new Error("You must be logged in to checkout.");
+  }
+
+  if (!Array.isArray(cartItems) || cartItems.length === 0) {
+    throw new Error("Cart is empty.");
+  }
+
+  const transactionRef = doc(collection(db, TRANSACTIONS_COLLECTION));
+
+  await runTransaction(db, async (firestoreTransaction) => {
+    const productSnapshots = await Promise.all(
+      cartItems.map(async (item) => {
+        const productRef = doc(db, PRODUCTS_COLLECTION, item.id);
+        const snapshot = await firestoreTransaction.get(productRef);
+
+        if (!snapshot.exists()) {
+          throw new Error(`${item.name} no longer exists in inventory.`);
+        }
+
+        const currentStock = Number(snapshot.data().stock ?? 0);
+        if (currentStock < item.quantity) {
+          throw new Error(`Insufficient stock for ${item.name}.`);
+        }
+
+        return { item, productRef, currentStock, snapshot };
+      }),
+    );
+
+    productSnapshots.forEach(({ item, productRef, currentStock }) => {
+      firestoreTransaction.update(productRef, {
+        stock: currentStock - item.quantity,
+        updatedAt: serverTimestamp(),
+      });
+    });
+
+    firestoreTransaction.set(transactionRef, {
+      items: cartItems.map((item) => ({
+        id: item.id,
+        name: item.name,
+        category: item.category ?? "",
+        price: Number(item.price ?? 0),
+        quantity: Number(item.quantity ?? 0),
+      })),
+      subtotal: Number(subtotal ?? 0),
+      discountAmount: Number(discountAmount ?? 0),
+      discountType: discountType ?? "none",
+      promoValue: Number(promoValue ?? 0),
+      totalAmount: Number(totalAmount ?? 0),
+      status: "Completed",
+      cashierUid: cashier.uid,
+      cashierEmail: cashier.email ?? "",
+      createdAt: serverTimestamp(),
+    });
+  });
+
+  return transactionRef;
+};

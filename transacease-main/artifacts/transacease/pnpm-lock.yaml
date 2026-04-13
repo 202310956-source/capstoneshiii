@@ -1,0 +1,54 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    devDependencies:
+      '@rollup/rollup-win32-x64-msvc':
+        specifier: ^4.60.0
+        version: 4.60.0
+      '@workspace/api-client-react':
+        specifier: workspace:*
+        version: link:../../lib/api-client-react
+      lightningcss-win32-x64-msvc:
+        specifier: ^1.32.0
+        version: 1.32.0
+
+  ../..: {}
+
+  ../../lib/api-client-react: {}
+
+  ../../lib/api-spec: {}
+
+  ../../lib/api-zod: {}
+
+  ../../lib/db: {}
+
+  ../../scripts: {}
+
+  ../api-server: {}
+
+  ../mockup-sandbox: {}
+
+packages:
+
+  '@rollup/rollup-win32-x64-msvc@4.60.0':
+    resolution: {integrity: sha512-PrsWNQ8BuE00O3Xsx3ALh2Df8fAj9+cvvX9AIA6o4KpATR98c9mud4XtDWVvsEuyia5U4tVSTKygawyJkjm60w==}
+    cpu: [x64]
+    os: [win32]
+
+  lightningcss-win32-x64-msvc@1.32.0:
+    resolution: {integrity: sha512-Amq9B/SoZYdDi1kFrojnoqPLxYhQ4Wo5XiL8EVJrVsB8ARoC1PWW6VGtT0WKCemjy8aC+louJnjS7U18x3b06Q==}
+    engines: {node: '>= 12.0.0'}
+    cpu: [x64]
+    os: [win32]
+
+snapshots:
+
+  '@rollup/rollup-win32-x64-msvc@4.60.0': {}
+
+  lightningcss-win32-x64-msvc@1.32.0: {}
