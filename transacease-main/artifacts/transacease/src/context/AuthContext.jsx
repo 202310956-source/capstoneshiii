@@ -1,17 +1,14 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { getUserRoleByEmail, loginUser, logoutUser, registerUser, subscribeToAuthChanges } from "../services/authService";
+import { getUserRole, loginUser, logoutUser, registerUser, subscribeToAuthChanges } from "../services/authService";
 
 const AuthContext = createContext(null);
 
-const mapFirebaseUser = (firebaseUser) => {
-  if (!firebaseUser) {
-    return null;
-  }
-
+const mapSupabaseUser = (supabaseUser) => {
+  if (!supabaseUser) return null;
   return {
-    uid: firebaseUser.uid,
-    email: firebaseUser.email,
-    displayName: firebaseUser.displayName ?? "",
+    uid: supabaseUser.id,
+    email: supabaseUser.email,
+    displayName: supabaseUser.user_metadata?.name ?? supabaseUser.email ?? "",
   };
 };
 
@@ -26,39 +23,34 @@ export function AuthProvider({ children }) {
   const [authError, setAuthError] = useState(null);
 
   useEffect(() => {
-    const unsubscribe = subscribeToAuthChanges(async (firebaseUser) => {
+    const unsubscribe = subscribeToAuthChanges(async (supabaseUser) => {
       setAuthError(null);
-
-      if (!firebaseUser) {
+      if (!supabaseUser) {
         setUser(null);
         setRole(null);
         setAuthLoading(false);
         return;
       }
-
       try {
-        const resolvedRole = await getUserRoleByEmail(firebaseUser.email);
-        setUser(mapFirebaseUser(firebaseUser));
+        const resolvedRole = await getUserRole(supabaseUser.id);
+        setUser(mapSupabaseUser(supabaseUser));
         setRole(resolvedRole);
       } catch (error) {
-        console.error("Unable to resolve user role", error);
-        setUser(mapFirebaseUser(firebaseUser));
+        setUser(mapSupabaseUser(supabaseUser));
         setRole("staff");
         setAuthError(error.message ?? "Unable to resolve account role.");
       } finally {
         setAuthLoading(false);
       }
     });
-
     return unsubscribe;
   }, []);
 
-  const login = async (email, password, rememberMe = true) => {
+  const login = async (email, password) => {
     setAuthError(null);
-
     try {
-      const { user: firebaseUser, role: resolvedRole } = await loginUser(email, password, rememberMe);
-      const nextUser = mapFirebaseUser(firebaseUser);
+      const { user: supabaseUser, role: resolvedRole } = await loginUser(email, password);
+      const nextUser = mapSupabaseUser(supabaseUser);
       setUser(nextUser);
       setRole(resolvedRole);
       return { user: nextUser, role: resolvedRole };
@@ -70,15 +62,9 @@ export function AuthProvider({ children }) {
 
   const register = async ({ name, email, password, role: nextRole = "staff" }) => {
     setAuthError(null);
-
     try {
-      const { user: firebaseUser, role: resolvedRole } = await registerUser({
-        name,
-        email,
-        password,
-        role: nextRole,
-      });
-      const nextUser = mapFirebaseUser(firebaseUser);
+      const { user: supabaseUser, role: resolvedRole } = await registerUser({ name, email, password, role: nextRole });
+      const nextUser = mapSupabaseUser(supabaseUser);
       setUser(nextUser);
       setRole(resolvedRole);
       return { user: nextUser, role: resolvedRole };
@@ -90,7 +76,6 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     setAuthError(null);
-
     try {
       await logoutUser();
       setUser(null);
@@ -102,16 +87,7 @@ export function AuthProvider({ children }) {
   };
 
   const value = useMemo(
-    () => ({
-      user,
-      role,
-      isAdmin: role === "admin",
-      authLoading,
-      authError,
-      login,
-      register,
-      logout,
-    }),
+    () => ({ user, role, isAdmin: role === "admin", authLoading, authError, login, register, logout }),
     [user, role, authLoading, authError],
   );
 
