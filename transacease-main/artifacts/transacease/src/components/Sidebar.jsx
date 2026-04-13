@@ -1,13 +1,15 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { FaTachometerAlt, FaClipboardList, FaBoxes, FaPercent, FaCog } from "react-icons/fa";
+import { FaTachometerAlt, FaClipboardList, FaBoxes, FaPercent, FaCog, FaCarrot, FaTabletAlt } from "react-icons/fa";
 
 const navItems = [
-  {label: "Dashboard", icon: FaTachometerAlt, path: "/dashboard"},
-  {label: "Orders", icon: FaClipboardList, path: "/orders"},
-  {label: "Inventory", icon: FaBoxes, path: "/inventory"},
-  {label: "Discounts", icon: FaPercent, path: "/discounts"},
-  {label: "Settings", icon: FaCog, path: "/settings"},
+  { label: "Dashboard",   icon: FaTachometerAlt, path: "/dashboard" },
+  { label: "Orders",      icon: FaClipboardList, path: "/orders" },
+  { label: "Inventory",   icon: FaBoxes,         path: "/inventory" },
+  { label: "Ingredients", icon: FaCarrot,        path: "/ingredients" },
+  { label: "Discounts",   icon: FaPercent,       path: "/discounts" },
+  { label: "Kiosk",       icon: FaTabletAlt,     path: "/kiosk" },
+  { label: "Settings",    icon: FaCog,           path: "/settings" },
 ];
 
 const Sidebar = ({ active = "Dashboard" }) => {
@@ -18,7 +20,7 @@ const Sidebar = ({ active = "Dashboard" }) => {
           <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center text-lg font-bold">W</div>
           <div>
             <p className="font-bold text-lg">TransactEase</p>
-            <p className="text-xs">Wimpy’s POS</p>
+            <p className="text-xs">Wimpy's POS</p>
           </div>
         </div>
         <nav className="space-y-2">
