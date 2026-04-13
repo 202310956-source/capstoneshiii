@@ -1,9 +1,10 @@
 -- =============================================
 -- Transacease Supabase Schema
+-- Safe to run multiple times (idempotent)
 -- Run this in the Supabase SQL Editor
 -- =============================================
 
--- Users (stores roles alongside Supabase Auth)
+-- ── USERS ────────────────────────────────────
 create table if not exists public.users (
   id uuid references auth.users(id) on delete cascade primary key,
   email text,
@@ -11,12 +12,16 @@ create table if not exists public.users (
   role text default 'staff' check (role in ('admin', 'staff'))
 );
 alter table public.users enable row level security;
+
+drop policy if exists "Users can read own profile" on public.users;
+drop policy if exists "Users can update own profile" on public.users;
+drop policy if exists "Service role full access to users" on public.users;
+
 create policy "Users can read own profile" on public.users for select using (auth.uid() = id);
 create policy "Users can update own profile" on public.users for update using (auth.uid() = id);
--- Allow service role full access
 create policy "Service role full access to users" on public.users using (true) with check (true);
 
--- Products
+-- ── PRODUCTS ─────────────────────────────────
 create table if not exists public.products (
   id uuid default gen_random_uuid() primary key,
   name text not null,
@@ -30,12 +35,18 @@ create table if not exists public.products (
   updated_at timestamptz default now()
 );
 alter table public.products enable row level security;
+
+drop policy if exists "Authenticated users can read products" on public.products;
+drop policy if exists "Authenticated users can insert products" on public.products;
+drop policy if exists "Authenticated users can update products" on public.products;
+drop policy if exists "Authenticated users can delete products" on public.products;
+
 create policy "Authenticated users can read products" on public.products for select using (auth.role() = 'authenticated');
 create policy "Authenticated users can insert products" on public.products for insert with check (auth.role() = 'authenticated');
 create policy "Authenticated users can update products" on public.products for update using (auth.role() = 'authenticated');
 create policy "Authenticated users can delete products" on public.products for delete using (auth.role() = 'authenticated');
 
--- Ingredients
+-- ── INGREDIENTS ──────────────────────────────
 create table if not exists public.ingredients (
   id uuid default gen_random_uuid() primary key,
   name text not null,
@@ -46,12 +57,18 @@ create table if not exists public.ingredients (
   updated_at timestamptz default now()
 );
 alter table public.ingredients enable row level security;
+
+drop policy if exists "Authenticated users can read ingredients" on public.ingredients;
+drop policy if exists "Authenticated users can insert ingredients" on public.ingredients;
+drop policy if exists "Authenticated users can update ingredients" on public.ingredients;
+drop policy if exists "Authenticated users can delete ingredients" on public.ingredients;
+
 create policy "Authenticated users can read ingredients" on public.ingredients for select using (auth.role() = 'authenticated');
 create policy "Authenticated users can insert ingredients" on public.ingredients for insert with check (auth.role() = 'authenticated');
 create policy "Authenticated users can update ingredients" on public.ingredients for update using (auth.role() = 'authenticated');
 create policy "Authenticated users can delete ingredients" on public.ingredients for delete using (auth.role() = 'authenticated');
 
--- Product–Ingredient linking
+-- ── PRODUCT–INGREDIENT LINKING ────────────────
 create table if not exists public.product_ingredients (
   id uuid default gen_random_uuid() primary key,
   product_id uuid references public.products(id) on delete cascade,
@@ -59,12 +76,18 @@ create table if not exists public.product_ingredients (
   required_quantity numeric not null default 1
 );
 alter table public.product_ingredients enable row level security;
+
+drop policy if exists "Authenticated users can read product_ingredients" on public.product_ingredients;
+drop policy if exists "Authenticated users can insert product_ingredients" on public.product_ingredients;
+drop policy if exists "Authenticated users can update product_ingredients" on public.product_ingredients;
+drop policy if exists "Authenticated users can delete product_ingredients" on public.product_ingredients;
+
 create policy "Authenticated users can read product_ingredients" on public.product_ingredients for select using (auth.role() = 'authenticated');
 create policy "Authenticated users can insert product_ingredients" on public.product_ingredients for insert with check (auth.role() = 'authenticated');
 create policy "Authenticated users can update product_ingredients" on public.product_ingredients for update using (auth.role() = 'authenticated');
 create policy "Authenticated users can delete product_ingredients" on public.product_ingredients for delete using (auth.role() = 'authenticated');
 
--- Transactions
+-- ── TRANSACTIONS ──────────────────────────────
 create table if not exists public.transactions (
   id uuid default gen_random_uuid() primary key,
   subtotal numeric default 0,
@@ -80,10 +103,14 @@ create table if not exists public.transactions (
   created_at timestamptz default now()
 );
 alter table public.transactions enable row level security;
+
+drop policy if exists "Authenticated users can read transactions" on public.transactions;
+drop policy if exists "Anyone can insert transactions" on public.transactions;
+
 create policy "Authenticated users can read transactions" on public.transactions for select using (auth.role() = 'authenticated');
 create policy "Anyone can insert transactions" on public.transactions for insert with check (true);
 
--- Transaction items
+-- ── TRANSACTION ITEMS ─────────────────────────
 create table if not exists public.transaction_items (
   id uuid default gen_random_uuid() primary key,
   transaction_id uuid references public.transactions(id) on delete cascade,
@@ -94,10 +121,14 @@ create table if not exists public.transaction_items (
   quantity integer
 );
 alter table public.transaction_items enable row level security;
+
+drop policy if exists "Authenticated users can read transaction_items" on public.transaction_items;
+drop policy if exists "Anyone can insert transaction_items" on public.transaction_items;
+
 create policy "Authenticated users can read transaction_items" on public.transaction_items for select using (auth.role() = 'authenticated');
 create policy "Anyone can insert transaction_items" on public.transaction_items for insert with check (true);
 
--- Enable realtime on all tables
+-- ── REALTIME ──────────────────────────────────
 alter publication supabase_realtime add table public.products;
 alter publication supabase_realtime add table public.ingredients;
 alter publication supabase_realtime add table public.product_ingredients;
