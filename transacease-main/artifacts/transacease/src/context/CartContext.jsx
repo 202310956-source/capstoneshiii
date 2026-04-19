@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { db } from "../services/firebase";
+import { collection, addDoc, serverTimestamp, writeBatch, doc, getDoc, updateDoc } from "firebase/firestore";
 import { useAuth } from "./AuthContext";
-import { checkoutTransaction } from "../services/transactionService";
 
 const CartContext = createContext();
 
@@ -42,9 +43,7 @@ export function CartProvider({ children }) {
     setCartItems((prev) => {
       const found = prev.find((item) => item.id === product.id);
       if (found) {
-        return prev.map((item) =>
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item,
-        );
+        return prev.map((item) => (item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item));
       }
       return [...prev, { ...product, quantity: 1 }];
     });
@@ -56,9 +55,7 @@ export function CartProvider({ children }) {
 
   const updateQuantity = (productId, quantity) => {
     if (quantity < 1) return;
-    setCartItems((prev) =>
-      prev.map((item) => (item.id === productId ? { ...item, quantity } : item)),
-    );
+    setCartItems((prev) => prev.map((item) => (item.id === productId ? { ...item, quantity } : item)));
   };
 
   const clearCart = () => {
@@ -75,15 +72,40 @@ export function CartProvider({ children }) {
     setError(null);
 
     try {
-      const txRef = await checkoutTransaction({
-        cartItems,
-        cashier: user,
-        subtotal,
-        discountAmount,
+      const transactionPayload = {
+        items: cartItems.map((item) => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+        })),
         totalAmount,
+        subtotal,
         discountType: discountType || "none",
-        promoValue: promo,
-      });
+        discountValue: discountAmount,
+        cashierId: user.uid,
+        cashierEmail: user.email,
+        createdAt: serverTimestamp(),
+      };
+
+      const txRef = await addDoc(collection(db, "transactions"), transactionPayload);
+
+      // Deduct inventory stock
+      const batch = writeBatch(db);
+      for (let product of cartItems) {
+        const productRef = doc(db, "products", product.id);
+        const productSnap = await getDoc(productRef);
+        if (!productSnap.exists()) {
+          throw new Error(`Product ${product.name} not found in inventory.`);
+        }
+        const currentStock = productSnap.data().stock || 0;
+        if (currentStock < product.quantity) {
+          throw new Error(`Insufficient stock for ${product.name}.`);
+        }
+        batch.update(productRef, { stock: currentStock - product.quantity });
+      }
+      await batch.commit();
+
       clearCart();
       return txRef;
     } catch (err) {
