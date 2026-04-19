@@ -4,6 +4,7 @@ import {
   onSnapshot,
   runTransaction,
   serverTimestamp,
+  updateDoc,
 } from "firebase/firestore";
 import { db, firebaseEnabled } from "./firebase";
 import { deductIngredients } from "./ingredientService";
@@ -50,6 +51,11 @@ export const subscribeToTransactions = (callback, onError) => {
     },
     onError,
   );
+};
+
+export const updateTransactionStatus = async (transactionId, status) => {
+  if (!firebaseEnabled) throw new Error("Firebase is not configured.");
+  await updateDoc(doc(db, TRANSACTIONS_COLLECTION, transactionId), { status });
 };
 
 export const checkoutTransaction = async ({
