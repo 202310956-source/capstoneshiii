@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { initializeFirestore, memoryLocalCache } from "firebase/firestore";
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? "AIzaSyCncfXx0hJywILbu5P-zPsut_v3XUwhJqw",
@@ -11,18 +11,9 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID ?? "1:432683804865:web:938e52ccbfbf06915fcc40",
 };
 
-let app = null;
-let auth = null;
-let db = null;
-let firebaseEnabled = true;
-
-try {
-  app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  db = initializeFirestore(app, { localCache: memoryLocalCache() });
-} catch (error) {
-  console.error("Firebase initialization failed:", error);
-  firebaseEnabled = false;
-}
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const firebaseEnabled = true;
 
 export { app, auth, db, firebaseEnabled };
