@@ -1,270 +1,225 @@
-import React, { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getDiscounts, addDiscount, updateDiscount, deleteDiscount } from "../../https";
-import { enqueueSnackbar } from "notistack";
+import React, { useState, useEffect } from "react";
+import { useSnackbar } from "notistack";
 import { MdAdd, MdEdit, MdDelete } from "react-icons/md";
 import { FaTag } from "react-icons/fa";
 import { motion } from "framer-motion";
 import { IoMdClose } from "react-icons/io";
-import { formatDateAndTime } from "../../utils";
+import { subscribeToDiscounts, addDiscount, updateDiscount, deleteDiscount } from "../../services/discountService";
 
 const emptyForm = { code: "", type: "percentage", value: "", minOrderAmount: "", maxUsage: "", expiresAt: "", isActive: true };
 
+const isExpired = (expiresAt) => expiresAt && new Date() > new Date(expiresAt);
+
+const formatDate = (val) => {
+  if (!val) return "No expiry";
+  const date = val.toDate ? val.toDate() : new Date(val);
+  return date.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
+};
+
 const DiscountManager = () => {
-  const queryClient = useQueryClient();
+  const { enqueueSnackbar } = useSnackbar();
+  const [discounts, setDiscounts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
 
-  const { data: resData, isLoading } = useQuery({
-    queryKey: ["discounts"],
-    queryFn: () => getDiscounts(),
-  });
-
-  const discounts = resData?.data.data || [];
-
-  const addMutation = useMutation({
-    mutationFn: (data) => addDiscount(data),
-    onSuccess: () => {
-      enqueueSnackbar("Discount created!", { variant: "success" });
-      queryClient.invalidateQueries(["discounts"]);
-      setShowModal(false);
-      setForm(emptyForm);
-    },
-    onError: (e) => enqueueSnackbar(e.response?.data?.message || "Error", { variant: "error" }),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => updateDiscount(id, data),
-    onSuccess: () => {
-      enqueueSnackbar("Discount updated!", { variant: "success" });
-      queryClient.invalidateQueries(["discounts"]);
-      setShowModal(false);
-      setEditItem(null);
-      setForm(emptyForm);
-    },
-    onError: (e) => enqueueSnackbar(e.response?.data?.message || "Error", { variant: "error" }),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id) => deleteDiscount(id),
-    onSuccess: () => {
-      enqueueSnackbar("Discount deleted!", { variant: "success" });
-      queryClient.invalidateQueries(["discounts"]);
-    },
-    onError: (e) => enqueueSnackbar(e.response?.data?.message || "Error", { variant: "error" }),
-  });
+  useEffect(() => {
+    const unsubscribe = subscribeToDiscounts(
+      (data) => { setDiscounts(data); setLoading(false); },
+      (err) => { setLoading(false); enqueueSnackbar(err.message || "Failed to load discounts.", { variant: "error" }); },
+    );
+    return unsubscribe;
+  }, []);
 
   const openAdd = () => { setEditItem(null); setForm(emptyForm); setShowModal(true); };
   const openEdit = (item) => {
     setEditItem(item);
     setForm({
-      code: item.code, type: item.type, value: item.value,
-      minOrderAmount: item.minOrderAmount, maxUsage: item.maxUsage,
+      code: item.code,
+      type: item.type,
+      value: String(item.value),
+      minOrderAmount: String(item.minOrderAmount),
+      maxUsage: String(item.maxUsage),
       expiresAt: item.expiresAt ? new Date(item.expiresAt).toISOString().split("T")[0] : "",
       isActive: item.isActive,
     });
     setShowModal(true);
   };
+  const closeModal = () => { setShowModal(false); setEditItem(null); setForm(emptyForm); };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const payload = { ...form, code: form.code.toUpperCase() };
-    if (editItem) updateMutation.mutate({ id: editItem.id, data: payload });
-    else addMutation.mutate(payload);
+    setSaving(true);
+    try {
+      const payload = {
+        code: form.code.trim().toUpperCase(),
+        type: form.type,
+        value: Number(form.value),
+        minOrderAmount: Number(form.minOrderAmount || 0),
+        maxUsage: Number(form.maxUsage || 0),
+        expiresAt: form.expiresAt || null,
+        isActive: form.isActive,
+      };
+      if (!payload.code) throw new Error("Discount code is required.");
+      if (editItem) {
+        await updateDiscount(editItem.id, payload);
+        enqueueSnackbar("Discount updated!", { variant: "success" });
+      } else {
+        await addDiscount(payload);
+        enqueueSnackbar("Discount created!", { variant: "success" });
+      }
+      closeModal();
+    } catch (err) {
+      enqueueSnackbar(err.message || "Failed to save discount.", { variant: "error" });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const toggleActive = (item) => {
-    updateMutation.mutate({ id: item.id, data: { isActive: !item.isActive } });
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this discount code?")) return;
+    try {
+      await deleteDiscount(id);
+      enqueueSnackbar("Discount deleted.", { variant: "success" });
+    } catch (err) {
+      enqueueSnackbar(err.message || "Failed to delete.", { variant: "error" });
+    }
   };
 
-  const isExpired = (expiresAt) => expiresAt && new Date() > new Date(expiresAt);
+  const handleToggle = async (item) => {
+    try {
+      await updateDiscount(item.id, { isActive: !item.isActive });
+      enqueueSnackbar(`Discount ${item.isActive ? "deactivated" : "activated"}.`, { variant: "success" });
+    } catch (err) {
+      enqueueSnackbar(err.message || "Failed to update.", { variant: "error" });
+    }
+  };
+
+  const active = discounts.filter((d) => d.isActive && !isExpired(d.expiresAt)).length;
+  const expired = discounts.filter((d) => isExpired(d.expiresAt)).length;
 
   return (
     <div className="p-6">
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-[#f5f5f5] text-2xl font-bold">Discount Management</h1>
           <p className="text-[#ababab] text-sm mt-1">{discounts.length} discount codes total</p>
         </div>
-        <button
-          onClick={openAdd}
-          className="flex items-center gap-2 bg-[#f6b100] text-[#1f1f1f] px-4 py-2 rounded-lg font-semibold"
-        >
+        <button onClick={openAdd} className="flex items-center gap-2 bg-[#f6b100] text-[#1f1f1f] px-4 py-2 rounded-lg font-semibold">
           <MdAdd size={20} /> Add Discount
         </button>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         {[
           { label: "Total Codes", value: discounts.length, color: "#5b45b0" },
-          { label: "Active Codes", value: discounts.filter((d) => d.isActive && !isExpired(d.expiresAt)).length, color: "#02ca3a" },
-          { label: "Expired / Inactive", value: discounts.filter((d) => !d.isActive || isExpired(d.expiresAt)).length, color: "#be3e3f" },
+          { label: "Active Codes", value: active, color: "#02ca3a" },
+          { label: "Expired", value: expired, color: "#e53935" },
         ].map(({ label, value, color }) => (
-          <div key={label} className="rounded-lg p-4 text-[#f5f5f5]" style={{ backgroundColor: color }}>
-            <p className="text-sm opacity-80">{label}</p>
-            <p className="text-3xl font-bold mt-1">{value}</p>
+          <div key={label} className="rounded-xl p-4 text-center" style={{ background: color + "22", border: `1px solid ${color}44` }}>
+            <p className="text-3xl font-bold" style={{ color }}>{value}</p>
+            <p className="text-[#ababab] text-sm mt-1">{label}</p>
           </div>
         ))}
       </div>
 
-      {/* Table */}
-      {isLoading ? (
-        <p className="text-[#ababab]">Loading...</p>
+      {loading ? (
+        <p className="text-[#ababab] text-center mt-10">Loading discounts…</p>
+      ) : discounts.length === 0 ? (
+        <div className="text-center mt-10">
+          <FaTag size={40} className="mx-auto text-[#383838] mb-3" />
+          <p className="text-[#ababab]">No discount codes yet. Create your first one.</p>
+        </div>
       ) : (
-        <div className="bg-[#262626] rounded-lg overflow-hidden">
-          <table className="w-full text-left text-[#f5f5f5]">
-            <thead className="bg-[#333] text-[#ababab] text-sm">
-              <tr>
-                {["Code", "Type", "Value", "Min Order", "Usage", "Expires", "Status", "Actions"].map((h) => (
-                  <th key={h} className="p-3">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {discounts.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="p-8 text-center text-[#ababab]">
-                    <FaTag size={40} className="mx-auto mb-2 opacity-40" />
-                    No discount codes yet
-                  </td>
-                </tr>
-              ) : discounts.map((discount) => {
-                const expired = isExpired(discount.expiresAt);
-                return (
-                  <tr key={discount.id} className="border-b border-[#333] hover:bg-[#2a2a2a]">
-                    <td className="p-3">
-                      <span className="font-mono font-bold text-[#f6b100] bg-[#1f1f1f] px-2 py-1 rounded">
-                        {discount.code}
-                      </span>
-                    </td>
-                    <td className="p-3 capitalize text-[#ababab] text-sm">{discount.type}</td>
-                    <td className="p-3 font-semibold">
-                      {discount.type === "percentage" ? `${discount.value}%` : `₹${discount.value}`}
-                    </td>
-                    <td className="p-3 text-[#ababab] text-sm">
-                      {discount.minOrderAmount > 0 ? `₹${discount.minOrderAmount}` : "None"}
-                    </td>
-                    <td className="p-3 text-sm">
-                      <span className="text-[#ababab]">{discount.usageCount}</span>
-                      {discount.maxUsage > 0 && <span className="text-[#ababab]"> / {discount.maxUsage}</span>}
-                    </td>
-                    <td className="p-3 text-sm text-[#ababab]">
-                      {discount.expiresAt
-                        ? <span className={expired ? "text-red-400" : "text-green-400"}>
-                            {new Date(discount.expiresAt).toLocaleDateString()}
-                          </span>
-                        : "Never"}
-                    </td>
-                    <td className="p-3">
-                      {expired ? (
-                        <span className="text-xs bg-red-900 text-red-300 px-2 py-1 rounded-full">Expired</span>
-                      ) : discount.isActive ? (
-                        <span className="text-xs bg-[#2e4a40] text-green-400 px-2 py-1 rounded-full">Active</span>
-                      ) : (
-                        <span className="text-xs bg-[#333] text-[#ababab] px-2 py-1 rounded-full">Inactive</span>
-                      )}
-                    </td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => toggleActive(discount)}
-                          className={`px-2 py-1 rounded text-xs font-semibold ${discount.isActive ? "bg-[#4a452e] text-yellow-400" : "bg-[#2e4a40] text-green-400"}`}>
-                          {discount.isActive ? "Disable" : "Enable"}
-                        </button>
-                        <button onClick={() => openEdit(discount)} className="bg-[#025cca] p-2 rounded-lg hover:opacity-80">
-                          <MdEdit size={14} className="text-white" />
-                        </button>
-                        <button
-                          onClick={() => { if (window.confirm("Delete this discount?")) deleteMutation.mutate(discount.id); }}
-                          className="bg-red-700 p-2 rounded-lg hover:opacity-80"
-                        >
-                          <MdDelete size={14} className="text-white" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {discounts.map((d) => {
+            const expired = isExpired(d.expiresAt);
+            return (
+              <div key={d.id} className={`rounded-xl bg-[#2a2a2a] border p-5 flex flex-col gap-3 ${expired ? "border-red-800/40 opacity-70" : d.isActive ? "border-[#383838]" : "border-[#383838] opacity-60"}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FaTag className="text-[#f6b100]" />
+                    <span className="font-bold text-white text-lg tracking-widest">{d.code}</span>
+                  </div>
+                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${expired ? "bg-red-900/50 text-red-400" : d.isActive ? "bg-green-900/50 text-green-400" : "bg-gray-700 text-gray-400"}`}>
+                    {expired ? "Expired" : d.isActive ? "Active" : "Inactive"}
+                  </span>
+                </div>
+                <div className="text-sm text-[#ababab] flex flex-col gap-1">
+                  <span>Type: <span className="text-white capitalize">{d.type}</span></span>
+                  <span>Value: <span className="text-white">{d.type === "percentage" ? `${d.value}%` : `₱${d.value}`}</span></span>
+                  {d.minOrderAmount > 0 && <span>Min order: <span className="text-white">₱{d.minOrderAmount}</span></span>}
+                  {d.maxUsage > 0 && <span>Max uses: <span className="text-white">{d.usageCount}/{d.maxUsage}</span></span>}
+                  <span>Expires: <span className="text-white">{formatDate(d.expiresAt)}</span></span>
+                </div>
+                <div className="flex gap-2 mt-auto pt-2 border-t border-[#383838]">
+                  <button onClick={() => handleToggle(d)} className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition ${d.isActive ? "bg-gray-700 text-gray-300 hover:bg-gray-600" : "bg-green-800/50 text-green-400 hover:bg-green-700/50"}`}>
+                    {d.isActive ? "Deactivate" : "Activate"}
+                  </button>
+                  <button onClick={() => openEdit(d)} className="rounded-lg bg-[#383838] p-1.5 text-[#ababab] hover:text-white">
+                    <MdEdit size={16} />
+                  </button>
+                  <button onClick={() => handleDelete(d.id)} className="rounded-lg bg-red-900/30 p-1.5 text-red-400 hover:bg-red-900/60">
+                    <MdDelete size={16} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* Add / Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-            className="bg-[#262626] p-6 rounded-lg shadow-lg w-[480px] max-h-[90vh] overflow-y-auto"
-          >
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-[#f5f5f5] text-xl font-semibold">{editItem ? "Edit Discount" : "Create Discount"}</h2>
-              <button onClick={() => setShowModal(false)} className="text-[#ababab] hover:text-red-400">
-                <IoMdClose size={24} />
-              </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md rounded-2xl bg-[#2a2a2a] p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-white font-bold text-lg">{editItem ? "Edit Discount" : "New Discount Code"}</h2>
+              <button onClick={closeModal} className="text-[#ababab] hover:text-white"><IoMdClose size={22} /></button>
             </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div>
-                <label className="block text-[#ababab] text-sm mb-1">Discount Code *</label>
-                <input type="text" value={form.code} onChange={(e) => setForm((p) => ({ ...p, code: e.target.value.toUpperCase() }))}
-                  required disabled={!!editItem}
-                  className="w-full bg-[#1f1f1f] text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-1 focus:ring-[#f6b100] font-mono uppercase"
+                <label className="block text-[#ababab] text-sm mb-1">Code *</label>
+                <input value={form.code} onChange={(e) => setForm((p) => ({ ...p, code: e.target.value }))} required
+                  className="w-full bg-[#1f1f1f] text-white rounded-lg px-4 py-3 uppercase tracking-widest focus:outline-none focus:ring-1 focus:ring-[#f6b100]"
                   placeholder="e.g. SAVE20" />
               </div>
-
               <div>
-                <label className="block text-[#ababab] text-sm mb-1">Discount Type *</label>
-                <div className="flex gap-3">
-                  {["percentage", "fixed"].map((t) => (
-                    <button key={t} type="button" onClick={() => setForm((p) => ({ ...p, type: t }))}
-                      className={`flex-1 py-3 rounded-lg font-semibold capitalize ${form.type === t ? "bg-indigo-700 text-white" : "bg-[#1f1f1f] text-[#ababab]"}`}>
-                      {t === "percentage" ? "% Percentage" : "₹ Fixed Amount"}
-                    </button>
-                  ))}
-                </div>
+                <label className="block text-[#ababab] text-sm mb-1">Type</label>
+                <select value={form.type} onChange={(e) => setForm((p) => ({ ...p, type: e.target.value }))}
+                  className="w-full bg-[#1f1f1f] text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-1 focus:ring-[#f6b100]">
+                  <option value="percentage">Percentage (%)</option>
+                  <option value="fixed">Fixed Amount (₱)</option>
+                </select>
               </div>
-
               <div>
-                <label className="block text-[#ababab] text-sm mb-1">
-                  Value * {form.type === "percentage" ? "(%)" : "(₹)"}
-                </label>
-                <input type="number" value={form.value} onChange={(e) => setForm((p) => ({ ...p, value: e.target.value }))}
-                  required min="0" max={form.type === "percentage" ? 100 : undefined}
+                <label className="block text-[#ababab] text-sm mb-1">Value * {form.type === "percentage" ? "(%)" : "(₱)"}</label>
+                <input type="number" value={form.value} onChange={(e) => setForm((p) => ({ ...p, value: e.target.value }))} required min="0"
+                  max={form.type === "percentage" ? 100 : undefined}
                   className="w-full bg-[#1f1f1f] text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-1 focus:ring-[#f6b100]"
                   placeholder={form.type === "percentage" ? "e.g. 20" : "e.g. 100"} />
               </div>
-
-              {[
-                { label: "Minimum Order Amount (₹)", key: "minOrderAmount", placeholder: "0 = no minimum" },
-                { label: "Max Usage (0 = unlimited)", key: "maxUsage", placeholder: "0" },
-              ].map(({ label, key, placeholder }) => (
+              {[{ label: "Min Order Amount (₱)", key: "minOrderAmount", placeholder: "0 = no minimum" },
+                { label: "Max Usage (0 = unlimited)", key: "maxUsage", placeholder: "0" }].map(({ label, key, placeholder }) => (
                 <div key={key}>
                   <label className="block text-[#ababab] text-sm mb-1">{label}</label>
-                  <input type="number" min="0" value={form[key]}
-                    onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))}
+                  <input type="number" min="0" value={form[key]} onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))}
                     className="w-full bg-[#1f1f1f] text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-1 focus:ring-[#f6b100]"
                     placeholder={placeholder} />
                 </div>
               ))}
-
               <div>
                 <label className="block text-[#ababab] text-sm mb-1">Expiry Date (optional)</label>
                 <input type="date" value={form.expiresAt} onChange={(e) => setForm((p) => ({ ...p, expiresAt: e.target.value }))}
                   className="w-full bg-[#1f1f1f] text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-1 focus:ring-[#f6b100]" />
               </div>
-
               <div className="flex items-center gap-3">
-                <input type="checkbox" id="isActive" checked={form.isActive}
-                  onChange={(e) => setForm((p) => ({ ...p, isActive: e.target.checked }))}
-                  className="w-4 h-4 accent-yellow-400" />
+                <input type="checkbox" id="isActive" checked={form.isActive} onChange={(e) => setForm((p) => ({ ...p, isActive: e.target.checked }))} className="w-4 h-4 accent-yellow-400" />
                 <label htmlFor="isActive" className="text-[#ababab] text-sm">Active immediately</label>
               </div>
-
-              <button type="submit" disabled={addMutation.isPending || updateMutation.isPending}
-                className="w-full bg-[#f6b100] text-[#1f1f1f] py-3 rounded-lg font-bold disabled:opacity-60 mt-2">
-                {editItem ? "Update Discount" : "Create Discount"}
+              <button type="submit" disabled={saving} className="w-full bg-[#f6b100] text-[#1f1f1f] py-3 rounded-lg font-bold disabled:opacity-60 mt-2">
+                {saving ? "Saving…" : editItem ? "Update Discount" : "Create Discount"}
               </button>
             </form>
           </motion.div>
