@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { Login, POS, Dashboard, Inventory, Auth, Ingredients, Kiosk } from "./pages";
+import { Login, POS, Dashboard, Inventory, Auth, Ingredients, Kiosk, Orders, Discounts } from "./pages";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 
@@ -43,8 +43,26 @@ function App() {
             </AdminRoute>
           }
         />
+        <Route
+          path="/orders"
+          element={
+            <AdminRoute>
+              <Orders />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/discounts"
+          element={
+            <AdminRoute>
+              <Discounts />
+            </AdminRoute>
+          }
+        />
         <Route path="*" element={
-          <div className="min-h-screen flex items-center justify-center bg-[#F7F7F7]"><p className="text-xl text-[#333333]">404 — Page Not Found</p></div>
+          <div className="min-h-screen flex items-center justify-center bg-[#F7F7F7]">
+            <p className="text-xl text-[#333333]">404 — Page Not Found</p>
+          </div>
         } />
       </Routes>
     </Router>
