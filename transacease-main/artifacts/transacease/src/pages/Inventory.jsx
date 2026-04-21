@@ -1,47 +1,40 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useSnackbar } from "notistack";
 import Sidebar from "../components/Sidebar";
-import Table from "../components/Table";
 import { addProduct, deleteProduct, restockProduct, subscribeToProducts, updateProduct } from "../services/productService";
 
 const PRESETS = [
-  { name: "Classic Burger", category: "Burgers", price: 89, stock: 50, reorderLevel: 10, sku: "BRG-001" },
-  { name: "Cheese Burger", category: "Burgers", price: 99, stock: 50, reorderLevel: 10, sku: "BRG-002" },
-  { name: "Double Burger", category: "Burgers", price: 129, stock: 30, reorderLevel: 5, sku: "BRG-003" },
-  { name: "Fried Chicken", category: "Chicken", price: 109, stock: 50, reorderLevel: 10, sku: "CHK-001" },
-  { name: "Chicken Sandwich", category: "Chicken", price: 99, stock: 40, reorderLevel: 8, sku: "CHK-002" },
-  { name: "Chicken Rice Meal", category: "Chicken", price: 119, stock: 40, reorderLevel: 8, sku: "CHK-003" },
-  { name: "Pork Sisig Rice", category: "Rice Meals", price: 129, stock: 30, reorderLevel: 5, sku: "RM-001" },
-  { name: "Chicken Adobo Rice", category: "Rice Meals", price: 119, stock: 30, reorderLevel: 5, sku: "RM-002" },
-  { name: "Tapsilog", category: "Rice Meals", price: 139, stock: 25, reorderLevel: 5, sku: "RM-003" },
-  { name: "Bangsilog", category: "Rice Meals", price: 129, stock: 25, reorderLevel: 5, sku: "RM-004" },
-  { name: "French Fries", category: "Sides", price: 59, stock: 60, reorderLevel: 10, sku: "SID-001" },
-  { name: "Onion Rings", category: "Sides", price: 69, stock: 40, reorderLevel: 8, sku: "SID-002" },
-  { name: "Coleslaw", category: "Sides", price: 45, stock: 40, reorderLevel: 8, sku: "SID-003" },
-  { name: "Coca-Cola", category: "Drinks", price: 45, stock: 100, reorderLevel: 20, sku: "DRK-001" },
-  { name: "Sprite", category: "Drinks", price: 45, stock: 100, reorderLevel: 20, sku: "DRK-002" },
-  { name: "Iced Tea", category: "Drinks", price: 55, stock: 80, reorderLevel: 15, sku: "DRK-003" },
-  { name: "Bottled Water", category: "Drinks", price: 30, stock: 100, reorderLevel: 20, sku: "DRK-004" },
-  { name: "Orange Juice", category: "Drinks", price: 65, stock: 60, reorderLevel: 15, sku: "DRK-005" },
-  { name: "Halo-Halo", category: "Desserts", price: 89, stock: 30, reorderLevel: 5, sku: "DST-001" },
-  { name: "Leche Flan", category: "Desserts", price: 79, stock: 20, reorderLevel: 5, sku: "DST-002" },
-  { name: "Ice Cream", category: "Desserts", price: 49, stock: 40, reorderLevel: 8, sku: "DST-003" },
-  { name: "Nachos", category: "Snacks", price: 75, stock: 40, reorderLevel: 8, sku: "SNK-001" },
-  { name: "Hotdog", category: "Snacks", price: 55, stock: 50, reorderLevel: 10, sku: "SNK-002" },
-  { name: "Spaghetti", category: "Pasta", price: 99, stock: 30, reorderLevel: 5, sku: "PST-001" },
+  { name: "Classic Burger", category: "Burgers", price: 89, stock: 50 },
+  { name: "Cheese Burger", category: "Burgers", price: 99, stock: 50 },
+  { name: "Double Burger", category: "Burgers", price: 129, stock: 30 },
+  { name: "Fried Chicken", category: "Chicken", price: 109, stock: 50 },
+  { name: "Chicken Sandwich", category: "Chicken", price: 99, stock: 40 },
+  { name: "Chicken Rice Meal", category: "Chicken", price: 119, stock: 40 },
+  { name: "Pork Sisig Rice", category: "Rice Meals", price: 129, stock: 30 },
+  { name: "Chicken Adobo Rice", category: "Rice Meals", price: 119, stock: 30 },
+  { name: "Tapsilog", category: "Rice Meals", price: 139, stock: 25 },
+  { name: "Bangsilog", category: "Rice Meals", price: 129, stock: 25 },
+  { name: "French Fries", category: "Sides", price: 59, stock: 60 },
+  { name: "Onion Rings", category: "Sides", price: 69, stock: 40 },
+  { name: "Coleslaw", category: "Sides", price: 45, stock: 40 },
+  { name: "Coca-Cola", category: "Drinks", price: 45, stock: 100 },
+  { name: "Sprite", category: "Drinks", price: 45, stock: 100 },
+  { name: "Iced Tea", category: "Drinks", price: 55, stock: 80 },
+  { name: "Bottled Water", category: "Drinks", price: 30, stock: 100 },
+  { name: "Orange Juice", category: "Drinks", price: 65, stock: 60 },
+  { name: "Halo-Halo", category: "Desserts", price: 89, stock: 30 },
+  { name: "Leche Flan", category: "Desserts", price: 79, stock: 20 },
+  { name: "Ice Cream", category: "Desserts", price: 49, stock: 40 },
+  { name: "Nachos", category: "Snacks", price: 75, stock: 40 },
+  { name: "Hotdog", category: "Snacks", price: 55, stock: 50 },
+  { name: "Spaghetti", category: "Pasta", price: 99, stock: 30 },
 ];
 
 const PRESET_CATEGORIES = [...new Set(PRESETS.map((p) => p.category))];
 
-const emptyForm = { name: "", category: "", price: "", stock: "", reorderLevel: "", sku: "", image: "" };
+const emptyForm = { name: "", category: "", price: "", stock: "" };
 
 const currencyFormatter = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
-
-const statusBadge = (stock, reorderLevel) => {
-  if (stock <= reorderLevel) return <span className="rounded-full bg-red-100 px-2 py-1 text-xs text-red-700">Low Stock</span>;
-  if (stock <= reorderLevel + 5) return <span className="rounded-full bg-orange-100 px-2 py-1 text-xs text-orange-700">Watch</span>;
-  return <span className="rounded-full bg-green-100 px-2 py-1 text-xs text-green-700">In Stock</span>;
-};
 
 const Inventory = () => {
   const { enqueueSnackbar } = useSnackbar();
@@ -53,6 +46,7 @@ const Inventory = () => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [addingPreset, setAddingPreset] = useState(null);
   const [presetCategory, setPresetCategory] = useState(PRESET_CATEGORIES[0]);
 
   useEffect(() => {
@@ -66,27 +60,29 @@ const Inventory = () => {
   const categories = useMemo(() => ["All", ...new Set(products.map((p) => p.category).filter(Boolean))], [products]);
 
   const filtered = useMemo(() => products.filter((product) => {
-    const matchesSearch = product.name.toLowerCase().includes(search.toLowerCase()) || product.sku.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = product.name.toLowerCase().includes(search.toLowerCase());
     const matchesFilter = filter === "All" || product.category === filter;
     return matchesSearch && matchesFilter;
   }), [products, search, filter]);
 
   const resetForm = () => { setForm(emptyForm); setEditingProduct(null); setShowModal(false); };
 
-  const openAddModal = () => { setEditingProduct(null); setForm(emptyForm); setShowModal(true); };
-
   const openEditModal = (product) => {
     setEditingProduct(product);
-    setForm({
-      name: product.name ?? "", category: product.category ?? "", price: String(product.price ?? ""),
-      stock: String(product.stock ?? ""), reorderLevel: String(product.reorderLevel ?? ""),
-      sku: product.sku ?? "", image: product.image ?? "",
-    });
+    setForm({ name: product.name ?? "", category: product.category ?? "", price: String(product.price ?? ""), stock: String(product.stock ?? "") });
     setShowModal(true);
   };
 
-  const applyPreset = (preset) => {
-    setForm({ name: preset.name, category: preset.category, price: String(preset.price), stock: String(preset.stock), reorderLevel: String(preset.reorderLevel), sku: preset.sku, image: "" });
+  const handleQuickAdd = async (preset) => {
+    setAddingPreset(preset.name);
+    try {
+      await addProduct({ name: preset.name, category: preset.category, price: preset.price, stock: preset.stock, reorderLevel: 5, sku: "", image: "" });
+      enqueueSnackbar(`"${preset.name}" added to inventory!`, { variant: "success" });
+    } catch (error) {
+      enqueueSnackbar(error.message || "Unable to add product.", { variant: "error" });
+    } finally {
+      setAddingPreset(null);
+    }
   };
 
   const handleSubmit = async (event) => {
@@ -94,9 +90,13 @@ const Inventory = () => {
     setSaving(true);
     try {
       const payload = {
-        name: form.name.trim(), category: form.category.trim() || "Uncategorized",
-        price: Number(form.price), stock: Number(form.stock),
-        reorderLevel: Number(form.reorderLevel || 0), sku: form.sku.trim(), image: form.image.trim(),
+        name: form.name.trim(),
+        category: form.category.trim() || "Uncategorized",
+        price: Number(form.price),
+        stock: Number(form.stock),
+        reorderLevel: 5,
+        sku: "",
+        image: "",
       };
       if (!payload.name) throw new Error("Product name is required.");
       if (editingProduct) {
@@ -137,42 +137,52 @@ const Inventory = () => {
     }
   };
 
-  const columns = [
-    { key: "name", header: "Product" },
-    { key: "category", header: "Category" },
-    { key: "sku", header: "SKU" },
-    { key: "price", header: "Price", render: (val) => currencyFormatter.format(val) },
-    { key: "stock", header: "Stock" },
-    { key: "status", header: "Status", render: (_, row) => statusBadge(row.stock, row.reorderLevel) },
-    {
-      key: "actions", header: "Actions",
-      render: (_, row) => (
-        <div className="flex gap-2">
-          <button onClick={() => openEditModal(row)} className="rounded-lg bg-[#FFD23F] px-3 py-1 text-xs font-semibold text-[#333]">Edit</button>
-          <button onClick={() => handleRestock(row)} className="rounded-lg bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">Restock</button>
-          <button onClick={() => handleDelete(row)} className="rounded-lg bg-red-100 px-3 py-1 text-xs font-semibold text-red-600">Delete</button>
-        </div>
-      ),
-    },
-  ];
-
   return (
     <div className="flex min-h-screen bg-[#F7F7F7]">
       <Sidebar />
       <main className="flex-1 p-8">
+
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-[#333333]">Inventory</h1>
             <p className="text-sm text-gray-500 mt-1">{products.length} products total</p>
           </div>
-          <button onClick={openAddModal} className="rounded-xl bg-[#FFD23F] px-5 py-2.5 font-semibold text-[#333333] shadow-sm hover:bg-[#f4c72f]">
-            + Add Product
+          <button onClick={() => { setEditingProduct(null); setForm(emptyForm); setShowModal(true); }}
+            className="rounded-xl bg-[#FFD23F] px-5 py-2.5 font-semibold text-[#333333] shadow-sm hover:bg-[#f4c72f]">
+            + Add Custom Product
           </button>
         </div>
 
-        <div className="mb-4 flex flex-wrap gap-3">
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name or SKU…"
-            className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FFD23F] w-64" />
+        {/* Quick Add Presets */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
+          <p className="text-sm font-bold text-gray-700 mb-3">Quick Add — click any item to instantly add it</p>
+          <div className="flex gap-2 flex-wrap mb-3">
+            {PRESET_CATEGORIES.map((cat) => (
+              <button key={cat} onClick={() => setPresetCategory(cat)}
+                className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${presetCategory === cat ? "bg-[#333] text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                {cat}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {PRESETS.filter((p) => p.category === presetCategory).map((preset) => (
+              <button
+                key={preset.name}
+                onClick={() => handleQuickAdd(preset)}
+                disabled={addingPreset === preset.name}
+                className="rounded-xl border border-[#FFD23F] bg-[#FFFBEA] px-4 py-2 text-sm font-semibold text-[#333] hover:bg-[#FFD23F] transition disabled:opacity-50"
+              >
+                {addingPreset === preset.name ? "Adding…" : preset.name}
+                <span className="ml-1.5 text-gray-400 text-xs">₱{preset.price}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Search & Filter */}
+        <div className="mb-4 flex flex-wrap gap-3 items-center">
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products…"
+            className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FFD23F] w-56" />
           <div className="flex gap-2 flex-wrap">
             {categories.map((cat) => (
               <button key={cat} onClick={() => setFilter(cat)}
@@ -183,53 +193,77 @@ const Inventory = () => {
           </div>
         </div>
 
-        {loading ? <p className="text-gray-400 text-center mt-20">Loading inventory…</p> : (
-          <Table columns={columns} data={filtered} emptyMessage="No products found." />
+        {/* Product List */}
+        {loading ? (
+          <p className="text-gray-400 text-center mt-20">Loading inventory…</p>
+        ) : filtered.length === 0 ? (
+          <p className="text-gray-400 text-center mt-20">No products found.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {filtered.map((product) => (
+              <div key={product.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-2">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-bold text-[#333] text-base">{product.name}</p>
+                    <span className="text-xs text-gray-400">{product.category}</span>
+                  </div>
+                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${product.stock === 0 ? "bg-red-100 text-red-600" : product.stock <= 10 ? "bg-orange-100 text-orange-600" : "bg-green-100 text-green-700"}`}>
+                    {product.stock === 0 ? "Out of Stock" : `${product.stock} in stock`}
+                  </span>
+                </div>
+                <p className="text-[#FFD23F] font-bold text-lg">{currencyFormatter.format(product.price)}</p>
+                <div className="flex gap-2 mt-1">
+                  <button onClick={() => openEditModal(product)} className="flex-1 rounded-xl bg-gray-100 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-200">Edit</button>
+                  <button onClick={() => handleRestock(product)} className="flex-1 rounded-xl bg-blue-50 py-1.5 text-sm font-semibold text-blue-600 hover:bg-blue-100">Restock</button>
+                  <button onClick={() => handleDelete(product)} className="flex-1 rounded-xl bg-red-50 py-1.5 text-sm font-semibold text-red-500 hover:bg-red-100">Delete</button>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
 
+        {/* Add / Edit Modal */}
         {showModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-            <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-[#333]">{editingProduct ? "Edit Product" : "Add Product"}</h2>
-                <button onClick={resetForm} className="text-gray-400 hover:text-gray-600 text-xl font-bold">×</button>
+            <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-lg font-bold text-[#333]">{editingProduct ? "Edit Product" : "Add Custom Product"}</h2>
+                <button onClick={resetForm} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
               </div>
-
-              {!editingProduct && (
-                <div className="mb-5">
-                  <p className="text-sm font-semibold text-gray-600 mb-2">Quick Presets — click to fill the form instantly</p>
-                  <div className="flex gap-2 flex-wrap mb-3">
-                    {PRESET_CATEGORIES.map((cat) => (
-                      <button key={cat} onClick={() => setPresetCategory(cat)}
-                        className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${presetCategory === cat ? "bg-[#333] text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
-                        {cat}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {PRESETS.filter((p) => p.category === presetCategory).map((preset) => (
-                      <button key={preset.sku} onClick={() => applyPreset(preset)}
-                        className="rounded-xl border border-[#FFD23F] bg-[#FFFBEA] px-3 py-1.5 text-xs font-semibold text-[#333] hover:bg-[#FFD23F] transition">
-                        {preset.name} <span className="text-gray-400 ml-1">₱{preset.price}</span>
-                      </button>
-                    ))}
-                  </div>
-                  <div className="border-t border-gray-100 mt-4 mb-1" />
-                </div>
-              )}
-
-              <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <input value={form.name} onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))} placeholder="Product name *" required className="rounded-lg border border-gray-300 px-3 py-2 md:col-span-2" />
-                <input value={form.category} onChange={(e) => setForm((c) => ({ ...c, category: e.target.value }))} placeholder="Category" className="rounded-lg border border-gray-300 px-3 py-2" />
-                <input value={form.sku} onChange={(e) => setForm((c) => ({ ...c, sku: e.target.value }))} placeholder="SKU" className="rounded-lg border border-gray-300 px-3 py-2" />
-                <input type="number" min="0" value={form.price} onChange={(e) => setForm((c) => ({ ...c, price: e.target.value }))} placeholder="Price" className="rounded-lg border border-gray-300 px-3 py-2" />
-                <input type="number" min="0" value={form.stock} onChange={(e) => setForm((c) => ({ ...c, stock: e.target.value }))} placeholder="Stock" className="rounded-lg border border-gray-300 px-3 py-2" />
-                <input type="number" min="0" value={form.reorderLevel} onChange={(e) => setForm((c) => ({ ...c, reorderLevel: e.target.value }))} placeholder="Reorder level" className="rounded-lg border border-gray-300 px-3 py-2" />
-                <input value={form.image} onChange={(e) => setForm((c) => ({ ...c, image: e.target.value }))} placeholder="Image URL (optional)" className="rounded-lg border border-gray-300 px-3 py-2 md:col-span-2" />
-                <div className="flex justify-end gap-3 md:col-span-2">
-                  <button type="button" onClick={resetForm} className="rounded-xl border border-gray-300 px-4 py-2 font-semibold text-gray-700">Cancel</button>
-                  <button type="submit" disabled={saving} className="rounded-xl bg-[#FFD23F] px-4 py-2 font-semibold text-[#333333] disabled:opacity-60">
-                    {saving ? "Saving…" : editingProduct ? "Update Product" : "Add Product"}
+              <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+                <input
+                  value={form.name}
+                  onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))}
+                  placeholder="Product name *"
+                  required
+                  className="rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD23F]"
+                />
+                <input
+                  value={form.category}
+                  onChange={(e) => setForm((c) => ({ ...c, category: e.target.value }))}
+                  placeholder="Category (e.g. Drinks)"
+                  className="rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD23F]"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  value={form.price}
+                  onChange={(e) => setForm((c) => ({ ...c, price: e.target.value }))}
+                  placeholder="Price (₱)"
+                  className="rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD23F]"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  value={form.stock}
+                  onChange={(e) => setForm((c) => ({ ...c, stock: e.target.value }))}
+                  placeholder="Starting stock"
+                  className="rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD23F]"
+                />
+                <div className="flex gap-3 mt-2">
+                  <button type="button" onClick={resetForm} className="flex-1 rounded-xl border border-gray-200 py-2.5 font-semibold text-gray-600">Cancel</button>
+                  <button type="submit" disabled={saving} className="flex-1 rounded-xl bg-[#FFD23F] py-2.5 font-semibold text-[#333] disabled:opacity-60">
+                    {saving ? "Saving…" : editingProduct ? "Update" : "Add Product"}
                   </button>
                 </div>
               </form>
