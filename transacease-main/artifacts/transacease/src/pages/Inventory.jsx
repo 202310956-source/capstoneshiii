@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useSnackbar } from "notistack";
 import Sidebar from "../components/Sidebar";
-import { addProduct, deleteProduct, restockProduct, subscribeToProducts, updateProduct } from "../services/productService";
+import { addProduct, deleteProduct, restockProduct, subscribeToProducts } from "../services/productService";
 
 const PRESETS = [
   { name: "Classic Burger", category: "Burgers", price: 89, stock: 50 },
@@ -31,9 +31,7 @@ const PRESETS = [
 ];
 
 const PRESET_CATEGORIES = [...new Set(PRESETS.map((p) => p.category))];
-
 const emptyForm = { name: "", category: "", price: "", stock: "" };
-
 const currencyFormatter = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
 
 const Inventory = () => {
@@ -43,7 +41,6 @@ const Inventory = () => {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
   const [form, setForm] = useState(emptyForm);
-  const [editingProduct, setEditingProduct] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [addingPreset, setAddingPreset] = useState(null);
@@ -65,13 +62,7 @@ const Inventory = () => {
     return matchesSearch && matchesFilter;
   }), [products, search, filter]);
 
-  const resetForm = () => { setForm(emptyForm); setEditingProduct(null); setShowModal(false); };
-
-  const openEditModal = (product) => {
-    setEditingProduct(product);
-    setForm({ name: product.name ?? "", category: product.category ?? "", price: String(product.price ?? ""), stock: String(product.stock ?? "") });
-    setShowModal(true);
-  };
+  const resetForm = () => { setForm(emptyForm); setShowModal(false); };
 
   const handleQuickAdd = async (preset) => {
     setAddingPreset(preset.name);
@@ -89,23 +80,10 @@ const Inventory = () => {
     event.preventDefault();
     setSaving(true);
     try {
-      const payload = {
-        name: form.name.trim(),
-        category: form.category.trim() || "Uncategorized",
-        price: Number(form.price),
-        stock: Number(form.stock),
-        reorderLevel: 5,
-        sku: "",
-        image: "",
-      };
+      const payload = { name: form.name.trim(), category: form.category.trim() || "Uncategorized", price: Number(form.price), stock: Number(form.stock), reorderLevel: 5, sku: "", image: "" };
       if (!payload.name) throw new Error("Product name is required.");
-      if (editingProduct) {
-        await updateProduct(editingProduct.id, payload);
-        enqueueSnackbar("Product updated.", { variant: "success" });
-      } else {
-        await addProduct(payload);
-        enqueueSnackbar("Product added.", { variant: "success" });
-      }
+      await addProduct(payload);
+      enqueueSnackbar("Product added.", { variant: "success" });
       resetForm();
     } catch (error) {
       enqueueSnackbar(error.message || "Unable to save product.", { variant: "error" });
@@ -141,19 +119,17 @@ const Inventory = () => {
     <div className="flex min-h-screen bg-[#F7F7F7]">
       <Sidebar />
       <main className="flex-1 p-8">
-
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-[#333333]">Inventory</h1>
             <p className="text-sm text-gray-500 mt-1">{products.length} products total</p>
           </div>
-          <button onClick={() => { setEditingProduct(null); setForm(emptyForm); setShowModal(true); }}
+          <button onClick={() => { setForm(emptyForm); setShowModal(true); }}
             className="rounded-xl bg-[#FFD23F] px-5 py-2.5 font-semibold text-[#333333] shadow-sm hover:bg-[#f4c72f]">
             + Add Custom Product
           </button>
         </div>
 
-        {/* Quick Add Presets */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
           <p className="text-sm font-bold text-gray-700 mb-3">Quick Add — click any item to instantly add it</p>
           <div className="flex gap-2 flex-wrap mb-3">
@@ -166,12 +142,8 @@ const Inventory = () => {
           </div>
           <div className="flex flex-wrap gap-2">
             {PRESETS.filter((p) => p.category === presetCategory).map((preset) => (
-              <button
-                key={preset.name}
-                onClick={() => handleQuickAdd(preset)}
-                disabled={addingPreset === preset.name}
-                className="rounded-xl border border-[#FFD23F] bg-[#FFFBEA] px-4 py-2 text-sm font-semibold text-[#333] hover:bg-[#FFD23F] transition disabled:opacity-50"
-              >
+              <button key={preset.name} onClick={() => handleQuickAdd(preset)} disabled={addingPreset === preset.name}
+                className="rounded-xl border border-[#FFD23F] bg-[#FFFBEA] px-4 py-2 text-sm font-semibold text-[#333] hover:bg-[#FFD23F] transition disabled:opacity-50">
                 {addingPreset === preset.name ? "Adding…" : preset.name}
                 <span className="ml-1.5 text-gray-400 text-xs">₱{preset.price}</span>
               </button>
@@ -179,7 +151,6 @@ const Inventory = () => {
           </div>
         </div>
 
-        {/* Search & Filter */}
         <div className="mb-4 flex flex-wrap gap-3 items-center">
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products…"
             className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FFD23F] w-56" />
@@ -193,7 +164,6 @@ const Inventory = () => {
           </div>
         </div>
 
-        {/* Product List */}
         {loading ? (
           <p className="text-gray-400 text-center mt-20">Loading inventory…</p>
         ) : filtered.length === 0 ? (
@@ -213,7 +183,6 @@ const Inventory = () => {
                 </div>
                 <p className="text-[#FFD23F] font-bold text-lg">{currencyFormatter.format(product.price)}</p>
                 <div className="flex gap-2 mt-1">
-                  <button onClick={() => openEditModal(product)} className="flex-1 rounded-xl bg-gray-100 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-200">Edit</button>
                   <button onClick={() => handleRestock(product)} className="flex-1 rounded-xl bg-blue-50 py-1.5 text-sm font-semibold text-blue-600 hover:bg-blue-100">Restock</button>
                   <button onClick={() => handleDelete(product)} className="flex-1 rounded-xl bg-red-50 py-1.5 text-sm font-semibold text-red-500 hover:bg-red-100">Delete</button>
                 </div>
@@ -222,48 +191,22 @@ const Inventory = () => {
           </div>
         )}
 
-        {/* Add / Edit Modal */}
         {showModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
             <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
               <div className="flex items-center justify-between mb-5">
-                <h2 className="text-lg font-bold text-[#333]">{editingProduct ? "Edit Product" : "Add Custom Product"}</h2>
+                <h2 className="text-lg font-bold text-[#333]">Add Custom Product</h2>
                 <button onClick={resetForm} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
               </div>
               <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-                <input
-                  value={form.name}
-                  onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))}
-                  placeholder="Product name *"
-                  required
-                  className="rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD23F]"
-                />
-                <input
-                  value={form.category}
-                  onChange={(e) => setForm((c) => ({ ...c, category: e.target.value }))}
-                  placeholder="Category (e.g. Drinks)"
-                  className="rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD23F]"
-                />
-                <input
-                  type="number"
-                  min="0"
-                  value={form.price}
-                  onChange={(e) => setForm((c) => ({ ...c, price: e.target.value }))}
-                  placeholder="Price (₱)"
-                  className="rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD23F]"
-                />
-                <input
-                  type="number"
-                  min="0"
-                  value={form.stock}
-                  onChange={(e) => setForm((c) => ({ ...c, stock: e.target.value }))}
-                  placeholder="Starting stock"
-                  className="rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD23F]"
-                />
+                <input value={form.name} onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))} placeholder="Product name *" required className="rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD23F]" />
+                <input value={form.category} onChange={(e) => setForm((c) => ({ ...c, category: e.target.value }))} placeholder="Category (e.g. Drinks)" className="rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD23F]" />
+                <input type="number" min="0" value={form.price} onChange={(e) => setForm((c) => ({ ...c, price: e.target.value }))} placeholder="Price (₱)" className="rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD23F]" />
+                <input type="number" min="0" value={form.stock} onChange={(e) => setForm((c) => ({ ...c, stock: e.target.value }))} placeholder="Starting stock" className="rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD23F]" />
                 <div className="flex gap-3 mt-2">
                   <button type="button" onClick={resetForm} className="flex-1 rounded-xl border border-gray-200 py-2.5 font-semibold text-gray-600">Cancel</button>
                   <button type="submit" disabled={saving} className="flex-1 rounded-xl bg-[#FFD23F] py-2.5 font-semibold text-[#333] disabled:opacity-60">
-                    {saving ? "Saving…" : editingProduct ? "Update" : "Add Product"}
+                    {saving ? "Saving…" : "Add Product"}
                   </button>
                 </div>
               </form>
